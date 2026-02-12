@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>大学別 単語テスト共有アプリ</title>
+
+<style>
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+}
+input, button {
+  margin: 4px 0;
+}
+.test {
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 6px 0;
+}
+.tag {
+  font-size: 0.9em;
+  color: #0055aa;
+  cursor: pointer;
+  text-decoration: underline;
+}
+</style>
+</head>
+
+<body>
+
+<h1>📘 単語テストメーカー</h1>
+
+<!-- 単語作成 -->
+<h2>① 単語を作る</h2>
+<input id="word" placeholder="単語">
+<input id="meaning" placeholder="意味">
+<button onclick="addWord()">追加</button>
+
+<div id="list"></div>
+
+<!-- テスト情報 -->
+<h2>② テスト情報</h2>
+<input id="title" placeholder="テスト名（例：期末対策）"><br>
+<input id="university" placeholder="大学名（例：〇〇大学）"><br>
+<input id="lecture" placeholder="科目名／講義名（例：社会学入門）"><br>
+
+<button onclick="postTest()">投稿する</button>
+
+<hr>
+
+<!-- 検索 -->
+<h2>🔍 タグ検索</h2>
+<input id="searchUniversity" placeholder="大学名で検索">
+<input id="searchLecture" placeholder="講義名で検索">
+<button onclick="search()">検索</button>
+<button onclick="resetSearch()">リセット</button>
+
+<hr>
+
+<!-- 投稿一覧 -->
+<h2>📚 投稿された単語テスト</h2>
+<div id="posts"></div>
+
+<hr>
+
+<!-- テスト画面 -->
+<h2 id="question"></h2>
+<input id="answer" placeholder="答え">
+<button onclick="check()">答える</button>
+<p id="result"></p>
+
+<script>
+// ====== データ ======
+let words = [];
+let index = 0;
+let currentTest = null;
+
+// 保存済み投稿
+const savedPosts = JSON.parse(localStorage.getItem("tests") || "[]");
+renderPosts();
+
+// ====== 単語作成 ======
+function addWord() {
+  if (!word.value || !meaning.value) return;
+  words.push({ word: word.value, meaning: meaning.value });
+  word.value = meaning.value = "";
+  renderList();
+}
+
+function renderList() {
+  list.innerHTML = "";
+  words.forEach(w => {
+    list.innerHTML += `<div>${w.word} - ${w.meaning}</div>`;
+  });
+}
+
+// ====== 投稿 ======
+function postTest() {
+  if (!title.value || !university.value || !lecture.value || words.length === 0) return;
+
+  savedPosts.push({
+    id: Date.now(),
+    title: title.value,
+    university: university.value,
+    lecture: lecture.value,
+    words: words
+  });
+
+  localStorage.setItem("tests", JSON.stringify(savedPosts));
+
+  words = [];
+  title.value = university.value = lecture.value = "";
+  renderList();
+  renderPosts();
+}
+
+// ====== 投稿一覧（タグクリック対応） ======
+function renderPosts(list = savedPosts) {
+  posts.innerHTML = "";
+  list.forEach(t => {
+    posts.innerHTML += `
+      <div class="test">
+        <strong>${t.title}</strong><br>
+        <span class="tag" onclick="clickUniversity('${t.university}')">
+          🏫 ${t.university}
+        </span><br>
+        <span class="tag" onclick="clickLecture('${t.lecture}')">
+          📘 ${t.lecture}
+        </span><br>
+        <button onclick="startTestById(${t.id})">テスト開始</button>
+      </div>
+    `;
+  });
+}
+
+// ====== タグ検索 ======
+function search() {
+  const u = searchUniversity.value;
+  const l = searchLecture.value;
+
+  const filtered = savedPosts.filter(t =>
+    t.university.includes(u) && t.lecture.includes(l)
+  );
+
+  renderPosts(filtered);
+}
+
+function resetSearch() {
+  searchUniversity.value = "";
+  searchLecture.value = "";
+  renderPosts();
+}
+
+// ====== タグクリック ======
+function clickUniversity(name) {
+  searchUniversity.value = name;
+  search();
+}
+
+function clickLecture(name) {
+  searchLecture.value = name;
+  search();
+}
+
+// ====== テスト ======
+function startTestById(id) {
+  currentTest = savedPosts.find(t => t.id === id);
+  index = 0;
+  result.textContent = "";
+  showQuestion();
+}
+
+function showQuestion() {
+  if (!currentTest || index >= currentTest.words.length) {
+    question.textContent = "テスト終了！";
+    return;
+  }
+  question.textContent = currentTest.words[index].word;
+  answer.value = "";
+}
+
+function check() {
+  if (!currentTest) return;
+
+  if (answer.value === currentTest.words[index].meaning) {
+    result.textContent = "正解！";
+  } else {
+    result.textContent = "不正解… 正解：" + currentTest.words[index].meaning;
+  }
+  index++;
+  showQuestion();
+}
+</script>
+
+</body>
+</html>
